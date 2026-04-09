@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/mcp.py",
+      "use": "@vercel/python",
+      "config": { "maxLambdaSize": "250mb" }
+    }
+  ],
+  "routes": [
+    { "src": "/mcp(.*)", "dest": "/api/mcp.py" }
+  ],
+  "functions": {
+    "api/mcp.py": { "maxDuration": 60 }
+  }
+}
