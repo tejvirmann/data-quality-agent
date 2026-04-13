@@ -1,16 +1,18 @@
 .PHONY: install dev test lint clean serve deploy fetch-model
 
-# Create venv and install deps
+# Create venv and install deps (includes PyTorch for EyeQ locally)
 install:
 	python3 -m venv .venv
 	.venv/bin/pip install --upgrade pip
 	.venv/bin/pip install -r requirements.txt
+	.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Install with dev deps (pytest, mypy, ruff)
 dev:
 	python3 -m venv .venv
 	.venv/bin/pip install --upgrade pip
 	.venv/bin/pip install -r requirements.txt -r requirements-dev.txt
+	.venv/bin/pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Run tests
 test:
