@@ -67,6 +67,67 @@ make deploy         # Deploy to Vercel
 | `validate_metadata` | EXIF extraction | Metadata fields |
 | `assess_fundus_quality` | EyeQ/MCF-Net deep learning | Good / Usable / Reject + confidence |
 
+## Testing Locally with curl
+
+Start the server with `make serve`, then use these commands in another terminal.
+
+**Step 1 — Initialize MCP session** (grab the `Mcp-Session-Id` from the response headers):
+
+```bash
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"0.1"}}}' \
+  -i
+```
+
+**Step 2 — List all available tools:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+```
+
+**Step 3 — Run full quality check on an image:**
+
+```bash
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"tool_check_image_quality","arguments":{"image_url":"https://picsum.photos/2048/2048.jpg"}}}'
+```
+
+**Step 4 — Run individual checks:**
+
+```bash
+# Sharpness only
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"tool_check_sharpness","arguments":{"image_url":"https://picsum.photos/2048/2048.jpg"}}}'
+
+# Resolution only
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"tool_check_resolution","arguments":{"image_url":"https://picsum.photos/2048/2048.jpg"}}}'
+
+# Color balance
+curl -X POST http://127.0.0.1:8000/mcp \
+  -H "Content-Type: application/json" \
+  -H "Accept: application/json, text/event-stream" \
+  -H "Mcp-Session-Id: YOUR_SESSION_ID" \
+  -d '{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"tool_check_color","arguments":{"image_url":"https://picsum.photos/2048/2048.jpg"}}}'
+```
+
+Replace `YOUR_SESSION_ID` with the value from the `Mcp-Session-Id` response header in step 1.
+
 ## Configuration
 
 All quality thresholds are configurable via `QualityConfig` (Pydantic model) or environment variables:

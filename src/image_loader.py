@@ -16,7 +16,8 @@ async def load_image_from_url(url: str) -> tuple[Image.Image, bytes]:
         httpx.HTTPStatusError: If the URL returns a non-2xx status.
         PIL.UnidentifiedImageError: If the content isn't a valid image.
     """
-    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
+    headers = {"User-Agent": "DataQualityAgent/0.1 (image quality check)"}
+    async with httpx.AsyncClient(timeout=30.0, follow_redirects=True, headers=headers) as client:
         response = await client.get(str(url))
         response.raise_for_status()
 

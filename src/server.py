@@ -29,9 +29,13 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP(
     "Data Quality Agent",
-    description="Automated image quality assessment for the Wisconsin Reading Center. "
-    "Checks fundus/retinal images for sharpness, resolution, format, illumination, "
-    "color balance, metadata, and runs EyeQ deep learning grading.",
+    instructions=(
+        "You are a retinal image quality assessment agent for the Wisconsin Reading Center. "
+        "You accept fundus/eye image URLs and evaluate them for diagnostic quality. "
+        "Use 'tool_check_image_quality' for a full report with an ACCEPT/REVIEW/REJECT verdict, "
+        "or call individual tools to inspect specific quality dimensions. "
+        "Images must be passed as publicly accessible URLs."
+    ),
 )
 
 
@@ -40,42 +44,78 @@ mcp = FastMCP(
 
 @mcp.tool()
 async def tool_check_sharpness(image_url: str) -> SharpnessResult:
-    """Check if an image is blurry using Laplacian variance. Higher score = sharper."""
+    """Detect blur in a retinal/fundus image using Laplacian variance.
+
+    Accepts a public image URL. Returns a sharpness score (higher = sharper)
+    and a pass/fail result. Blurry fundus images cannot be graded for disease
+    markers and should be rejected or flagged for retake.
+
+    - score > 150: sharp (pass)
+    - score 80-150: borderline (review)
+    - score < 80: blurry (reject)
+    """
     image, _ = await load_image_from_url(image_url)
     return check_sharpness(image)
 
 
 @mcp.tool()
 async def tool_check_resolution(image_url: str) -> ResolutionResult:
-    """Validate image dimensions against minimum requirements (default 1024x1024)."""
+    """Validate that an image meets minimum resolution requirements for diagnostic grading.
+
+    Accepts a public image URL. Checks width and height against configurable minimums
+    (default: 1024x1024). Fundus images below minimum resolution lack the detail needed
+    for reliable clinical assessment. Returns dimensions, megapixel count, and pass/fail.
+    """
     image, _ = await load_image_from_url(image_url)
     return check_resolution(image)
 
 
 @mcp.tool()
 async def tool_check_format(image_url: str) -> FormatResult:
-    """Validate image file format and check for corruption."""
+    """Validate image file format and detect corruption.
+
+    Accepts a public image URL. Verifies the file is a supported format (JPEG, PNG, TIFF, BMP)
+    by inspecting actual file bytes, not just the extension. Also performs corruption detection
+    by verifying header integrity and loading all pixel data. Corrupted files will fail clinical
+    processing pipelines and must be re-uploaded.
+    """
     image, raw_bytes = await load_image_from_url(image_url)
     return check_format(image, raw_bytes)
 
 
 @mcp.tool()
 async def tool_check_illumination(image_url: str) -> IlluminationResult:
-    """Analyze image brightness, uniformity, and detect vignetting."""
+    """Analyze brightness, exposure uniformity, and vignetting in a fundus image.
+
+    Accepts a public image URL. Checks for underexposure (too dark), overexposure (too bright),
+    uneven illumination across the image, and vignetting (dark corners). Poor illumination
+    obscures retinal structures and makes clinical grading unreliable. Returns brightness stats,
+    uniformity flag, and vignetting detection.
+    """
     image, _ = await load_image_from_url(image_url)
     return check_illumination(image)
 
 
 @mcp.tool()
 async def tool_check_color(image_url: str) -> ColorResult:
-    """Validate color space (should be RGB) and check channel balance."""
+    """Validate color space and check for color channel imbalance in a fundus image.
+
+    Accepts a public image URL. Fundus images should be RGB with balanced color channels.
+    Extreme tint (e.g., all-red or washed-out blue) indicates a camera or processing problem.
+    Returns the color mode, channel count, per-channel means, and whether the image is balanced.
+    """
     image, _ = await load_image_from_url(image_url)
     return check_color(image)
 
 
 @mcp.tool()
 async def tool_validate_metadata(image_url: str) -> MetadataResult:
-    """Extract and validate EXIF metadata from the image."""
+    """Extract EXIF metadata from an image for audit and traceability.
+
+    Accepts a public image URL. Extracts camera model, capture date, dimensions, and other
+    EXIF fields. Metadata helps track which camera captured the image, when, and with what
+    settings. Missing EXIF is not a failure but is flagged for awareness.
+    """
     image, _ = await load_image_from_url(image_url)
     return validate_metadata(image)
 
@@ -84,8 +124,16 @@ async def tool_validate_metadata(image_url: str) -> MetadataResult:
 async def tool_assess_fundus_quality(image_url: str) -> FundusAssessment:
     """Run EyeQ/MCF-Net deep learning model for fundus-specific quality grading.
 
-    Returns Good / Usable / Reject with confidence scores.
-    Requires model weights (run 'make fetch-model' first).
+    Accepts a public image URL. Uses a DenseNet121-based multi-color-space fusion network
+    trained specifically on fundus images. Processes the image in RGB, HSV, and LAB color
+    spaces and returns a clinical quality grade:
+
+    - GOOD: suitable for diagnostic grading
+    - USABLE: acceptable but may have minor issues
+    - REJECT: not suitable for clinical use, retake required
+
+    Also returns confidence score and per-class probabilities.
+    Requires model weights to be downloaded (run 'make fetch-model').
     """
     from src.ml.eyeq import assess_fundus_quality
 
@@ -98,11 +146,19 @@ async def tool_assess_fundus_quality(image_url: str) -> FundusAssessment:
 
 @mcp.tool()
 async def tool_check_image_quality(image_url: str) -> QualityReport:
-    """Run ALL quality checks on an image and return a full report with verdict.
+    """Run ALL quality checks on a fundus/retinal image and return a comprehensive report.
 
-    Verdict is ACCEPT, REVIEW, or REJECT based on combined check results.
-    Includes classical checks (sharpness, resolution, format, illumination, color,
-    metadata) and optionally EyeQ deep learning fundus grading.
+    This is the primary tool. Accepts a public image URL and runs every available check:
+    sharpness (blur detection), resolution, format/corruption, illumination/exposure,
+    color balance, EXIF metadata, and optionally EyeQ deep learning grading.
+
+    Returns a verdict:
+    - ACCEPT: image passes all checks, ready for clinical grading
+    - REVIEW: minor issues detected, human review recommended
+    - REJECT: critical failures (blurry, corrupted, or EyeQ reject), retake needed
+
+    Use this tool when you want a single comprehensive quality assessment.
+    Use the individual tools when you need to investigate a specific quality dimension.
     """
     image, raw_bytes = await load_image_from_url(image_url)
 
