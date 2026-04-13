@@ -11,6 +11,7 @@
     }
   ],
   "routes": [
-    { "src": "/mcp(.*)", "dest": "/api/mcp.py" }
+    { "src": "/mcp(.*)", "dest": "/api/mcp.py" },
+    { "src": "/", "dest": "/api/mcp.py" }
   ]
 }

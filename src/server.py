@@ -219,4 +219,6 @@ async def tool_check_image_quality(image_url: str) -> QualityReport:
 
 
 if __name__ == "__main__":
-    mcp.run(transport="streamable-http")
+    import uvicorn
+    from api.mcp import app
+    uvicorn.run(app, host="127.0.0.1", port=8000)
