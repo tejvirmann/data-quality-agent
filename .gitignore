@@ -42,3 +42,4 @@ src/ml/weights/
 *.log
 htmlcov/
 .coverage
+.vercel

@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "WebFetch(domain:www.ophth.wisc.edu)"
+      "WebFetch(domain:www.ophth.wisc.edu)",
+      "Bash(vercel ls:*)"
     ]
   }
 }
