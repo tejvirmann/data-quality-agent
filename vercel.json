@@ -4,13 +4,13 @@
     {
       "src": "api/mcp.py",
       "use": "@vercel/python",
-      "config": { "maxLambdaSize": "250mb" }
+      "config": {
+        "maxLambdaSize": "250mb",
+        "maxDuration": 60
+      }
     }
   ],
   "routes": [
     { "src": "/mcp(.*)", "dest": "/api/mcp.py" }
-  ],
-  "functions": {
-    "api/mcp.py": { "maxDuration": 60 }
-  }
+  ]
 }
