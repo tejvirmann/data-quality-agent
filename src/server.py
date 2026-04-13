@@ -220,5 +220,20 @@ async def tool_check_image_quality(image_url: str) -> QualityReport:
 
 if __name__ == "__main__":
     import uvicorn
-    from api.mcp import app
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    from starlette.applications import Starlette
+    from starlette.requests import Request
+    from starlette.responses import HTMLResponse
+    from starlette.routing import Mount, Route
+
+    from src.docs_html import DOCS_HTML
+
+    async def docs_page(request: Request) -> HTMLResponse:
+        return HTMLResponse(DOCS_HTML)
+
+    local_app = Starlette(
+        routes=[
+            Route("/", docs_page),
+            Mount("/mcp", app=mcp.streamable_http_app()),
+        ],
+    )
+    uvicorn.run(local_app, host="127.0.0.1", port=8000)
