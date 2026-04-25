@@ -37,6 +37,8 @@ mcp = FastMCP(
         "or call individual tools to inspect specific quality dimensions. "
         "Images must be passed as publicly accessible URLs."
     ),
+    stateless_http=True,
+    json_response=True,
     transport_security=TransportSecuritySettings(
         enable_dns_rebinding_protection=True,
         allowed_hosts=[
