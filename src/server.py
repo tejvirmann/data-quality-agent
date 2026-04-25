@@ -3,6 +3,7 @@
 import logging
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.transport_security import TransportSecuritySettings
 
 from src.checks.color import check_color
 from src.checks.format_check import check_format
@@ -35,6 +36,21 @@ mcp = FastMCP(
         "Use 'tool_check_image_quality' for a full report with an ACCEPT/REVIEW/REJECT verdict, "
         "or call individual tools to inspect specific quality dimensions. "
         "Images must be passed as publicly accessible URLs."
+    ),
+    transport_security=TransportSecuritySettings(
+        enable_dns_rebinding_protection=True,
+        allowed_hosts=[
+            "data-quality-agent-2.vercel.app",
+            "127.0.0.1:*",
+            "localhost:*",
+            "[::1]:*",
+        ],
+        allowed_origins=[
+            "https://claude.ai",
+            "https://claude.com",
+            "http://127.0.0.1:*",
+            "http://localhost:*",
+        ],
     ),
 )
 
