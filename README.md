@@ -17,6 +17,8 @@
 
 ---
 
+TODO: Update so the agent takes in an image vs a url to one. 
+
 ## Impact
 
 The Wisconsin Reading Center (UW-Madison, Dept of Ophthalmology & Visual Sciences) grades **~100,000 retinal images per year** across multi-center clinical trials. Every image must meet quality standards before a human grader can assess it for disease markers like diabetic retinopathy, macular degeneration, and glaucoma.
