@@ -1,4 +1,4 @@
-.PHONY: install dev test lint clean serve deploy fetch-model
+.PHONY: install dev test lint clean serve demo deploy fetch-model
 
 # Create venv and install deps (includes PyTorch for EyeQ locally)
 install:
@@ -37,6 +37,10 @@ clean:
 # Run MCP server locally
 serve:
 	.venv/bin/python -m src.server
+
+# Run the web demo + docs page locally (http://127.0.0.1:8001)
+demo:
+	.venv/bin/uvicorn src.web:app --port 8001 --reload
 
 # Deploy to Vercel
 deploy:

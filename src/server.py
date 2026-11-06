@@ -11,10 +11,8 @@ from src.checks.illumination import check_illumination
 from src.checks.metadata import validate_metadata
 from src.checks.resolution import check_resolution
 from src.checks.sharpness import check_sharpness
-from src.config import config
 from src.image_loader import load_image_from_url
 from src.models import (
-    CheckResult,
     ColorResult,
     FormatResult,
     FundusAssessment,
@@ -23,8 +21,8 @@ from src.models import (
     QualityReport,
     ResolutionResult,
     SharpnessResult,
-    Verdict,
 )
+from src.report import run_quality_checks
 
 logger = logging.getLogger(__name__)
 
@@ -68,9 +66,10 @@ async def tool_check_sharpness(image_url: str) -> SharpnessResult:
     and a pass/fail result. Blurry fundus images cannot be graded for disease
     markers and should be rejected or flagged for retake.
 
-    - score > 150: sharp (pass)
-    - score 80-150: borderline (review)
-    - score < 80: blurry (reject)
+    The score is a brightness-normalized focus measure taken inside the retina:
+    - score >= 3.5: sharp (pass)
+    - score 1.5-3.5: borderline (review)
+    - score < 1.5: blurry (reject)
     """
     image, _ = await load_image_from_url(image_url)
     return check_sharpness(image)
@@ -179,61 +178,7 @@ async def tool_check_image_quality(image_url: str) -> QualityReport:
     Use the individual tools when you need to investigate a specific quality dimension.
     """
     image, raw_bytes = await load_image_from_url(image_url)
-
-    # Run all classical checks
-    sharpness = check_sharpness(image)
-    resolution = check_resolution(image)
-    fmt = check_format(image, raw_bytes)
-    illumination = check_illumination(image)
-    color = check_color(image)
-    metadata = validate_metadata(image)
-
-    checks: list[CheckResult] = [
-        CheckResult(name="sharpness", passed=sharpness.is_sharp, detail=sharpness.detail),
-        CheckResult(name="resolution", passed=resolution.meets_minimum, detail=f"{resolution.width}x{resolution.height}, {resolution.megapixels}MP"),
-        CheckResult(name="format", passed=fmt.valid and not fmt.corrupted, detail=fmt.detail),
-        CheckResult(name="illumination", passed=illumination.uniform, detail=illumination.detail),
-        CheckResult(name="color", passed=color.balanced, detail=color.detail),
-        CheckResult(name="metadata", passed=metadata.has_exif, detail=f"{len(metadata.fields)} EXIF fields found" if metadata.has_exif else "No EXIF data"),
-    ]
-
-    # Try EyeQ if enabled
-    fundus_assessment: FundusAssessment | None = None
-    if config.eyeq_enabled:
-        try:
-            from src.ml.eyeq import assess_fundus_quality
-            fundus_assessment = assess_fundus_quality(image)
-            checks.append(
-                CheckResult(
-                    name="fundus_quality",
-                    passed=fundus_assessment.grade.value != "reject",
-                    detail=f"EyeQ grade: {fundus_assessment.grade.value} (confidence: {fundus_assessment.confidence})",
-                )
-            )
-        except Exception as e:
-            logger.warning("EyeQ assessment skipped: %s", e)
-            checks.append(
-                CheckResult(name="fundus_quality", passed=True, detail=f"Skipped: {e}")
-            )
-
-    # Determine verdict
-    failed = [c for c in checks if not c.passed]
-    critical_failures = {"format", "sharpness", "fundus_quality"}
-    has_critical_failure = any(c.name in critical_failures for c in failed)
-
-    if has_critical_failure or len(failed) >= 3:
-        verdict = Verdict.REJECT
-    elif len(failed) >= 1:
-        verdict = Verdict.REVIEW
-    else:
-        verdict = Verdict.ACCEPT
-
-    return QualityReport(
-        verdict=verdict,
-        checks=checks,
-        fundus_assessment=fundus_assessment,
-        image_url=str(image_url),
-    )
+    return run_quality_checks(image, raw_bytes, str(image_url))
 
 
 if __name__ == "__main__":

@@ -106,6 +106,7 @@ class CheckResult(BaseModel):
     name: str
     passed: bool
     detail: str
+    metrics: dict[str, float | int | str | bool | list[float]] = {}
 
 
 class QualityReport(BaseModel):
@@ -115,3 +116,5 @@ class QualityReport(BaseModel):
     checks: list[CheckResult]
     fundus_assessment: FundusAssessment | None = None
     image_url: str
+    summary: str = ""
+    notes: list[str] = []

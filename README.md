@@ -17,7 +17,16 @@
 
 ---
 
-TODO: Update so the agent takes in an image vs a url to one. 
+## Try it
+
+The deployed home page has a live demo: pick one of seven sample images (good, soft, blurry, dark, color cast, low
+resolution, corrupted) or drop in your own photo (JPEG or PNG, up to 4 MB) and see the verdict and every check.
+Uploads are analyzed in memory and not stored. The samples are variations of one public-domain fundus photograph
+(CC0, Mikael Häggström, Wikimedia Commons).
+
+Run it locally with `make demo` and open http://127.0.0.1:8001.
+
+The web demo accepts uploads. The **MCP tools still take a public image URL**.
 
 ## Impact
 
@@ -71,7 +80,7 @@ All tools accept `image_url` (string) — a publicly accessible image URL.
 | Tool | What it does | Returns |
 |---|---|---|
 | `tool_check_image_quality` | **Primary tool.** Runs all checks, returns combined verdict | `ACCEPT` / `REVIEW` / `REJECT` + full report |
-| `tool_check_sharpness` | Blur detection via Laplacian variance | Score, pass/fail, detail |
+| `tool_check_sharpness` | Blur detection: brightness-normalized Laplacian variance inside the retina | Score, pass/fail, detail |
 | `tool_check_resolution` | Dimension validation (default min 1024x1024) | Width, height, megapixels, pass/fail |
 | `tool_check_format` | File format (magic bytes) + corruption detection | Format name, valid, corrupted |
 | `tool_check_illumination` | Brightness, uniformity, vignetting | Mean/std brightness, uniformity, vignetting flag |
@@ -87,12 +96,15 @@ All tools accept `image_url` (string) — a publicly accessible image URL.
 # Install
 make dev
 
-# Run server locally
+# Run the MCP server locally (MCP endpoint only)
 make serve
-# -> http://127.0.0.1:8000     (docs page)
-# -> http://127.0.0.1:8000/mcp (MCP endpoint)
+# -> http://127.0.0.1:8000/mcp
 
-# Run tests (21 tests)
+# Run the web demo + docs page locally (upload an image, see the verdict)
+make demo
+# -> http://127.0.0.1:8001
+
+# Run tests
 make test
 
 # Remove Python artifacts (__pycache__, .pyc, etc.)
@@ -166,15 +178,21 @@ All quality thresholds are configurable via environment variables (or `QualityCo
 
 | Variable | Default | Description |
 |---|---|---|
-| `QUALITY_SHARPNESS_PASS` | `150` | Sharpness score to pass |
-| `QUALITY_SHARPNESS_REVIEW` | `80` | Sharpness score for review |
+| `QUALITY_SHARPNESS_PASS` | `3.5` | Sharpness score to pass (normalized, see note below) |
+| `QUALITY_SHARPNESS_REVIEW` | `1.5` | Below this is a clear blur (reject); between the two is review |
 | `QUALITY_MIN_WIDTH` | `1024` | Minimum image width (px) |
 | `QUALITY_MIN_HEIGHT` | `1024` | Minimum image height (px) |
 | `QUALITY_BRIGHTNESS_MIN_PASS` | `60` | Min brightness to pass |
 | `QUALITY_BRIGHTNESS_MAX_PASS` | `200` | Max brightness to pass |
-| `QUALITY_COLOR_BALANCE_PASS` | `30` | Max channel diff to pass |
+| `QUALITY_VIGNETTING_RATIO_MIN` | `0.6` | Outer/center retina brightness below this is flagged |
+| `QUALITY_COLOR_GR_MIN` / `_MAX` | `0.25` / `0.85` | Allowed retina green/red ratio (healthy fundus is red-orange) |
+| `QUALITY_COLOR_BR_MAX` | `0.7` | Max blue/red ratio (higher is a blue cast) |
 | `QUALITY_ALLOWED_FORMATS` | `JPEG,PNG,TIFF,BMP` | Accepted file formats |
 | `QUALITY_EYEQ_ENABLED` | `true` | Enable/disable EyeQ DL model |
+
+**Calibration note.** The checks measure the retina disc only (the black border of a fundus photo is ignored), and the
+defaults above were tuned on one real photograph plus degraded copies of it. They are a starting point: tune them on
+real reading-center images before relying on the verdicts clinically.
 
 ```bash
 # Example: run without deep learning model
@@ -189,7 +207,9 @@ QUALITY_EYEQ_ENABLED=false make serve
 make deploy    # vercel --prod
 ```
 
-EyeQ deep learning runs locally only (PyTorch too large for Vercel lambda). On Vercel, classical checks run and EyeQ is gracefully skipped.
+EyeQ deep learning runs locally only (PyTorch too large for Vercel lambda). On Vercel, classical checks run and the report notes that EyeQ was not available (it does not count toward the verdict).
+
+`requirements.txt` pins `mcp<2`: the MCP SDK 2.x renamed `FastMCP`, which this server uses. Lift the pin only after migrating.
 
 ---
 

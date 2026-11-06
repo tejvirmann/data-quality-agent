@@ -5,13 +5,9 @@ from pydantic import ValidationError
 
 from src.models import (
     CheckResult,
-    ColorResult,
-    FormatResult,
     FundusAssessment,
     FundusGrade,
-    IlluminationResult,
     ImageInput,
-    MetadataResult,
     QualityReport,
     ResolutionResult,
     SharpnessResult,

@@ -6,7 +6,6 @@ Outputs: Good / Usable / Reject with confidence scores.
 """
 
 import logging
-import os
 from pathlib import Path
 
 import cv2
