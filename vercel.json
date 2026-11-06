@@ -11,11 +11,21 @@
     },
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "includeFiles": "src/samples/**",
+        "maxLambdaSize": "250mb"
+      }
     }
   ],
   "routes": [
-    { "src": "/mcp(.*)", "dest": "/api/mcp.py" },
-    { "src": "/", "dest": "/api/index.py" }
+    {
+      "src": "/mcp(.*)",
+      "dest": "/api/mcp.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/api/index.py"
+    }
   ]
 }

@@ -1,52 +1,45 @@
-"""Color space validation and channel balance checking."""
+"""Color space validation and channel balance checking for fundus images."""
 
 import numpy as np
 from PIL import Image
 
 from src.config import config
+from src.fov import fov_mask
 from src.models import ColorResult
 
 
 def check_color(image: Image.Image) -> ColorResult:
-    """Validate color space and check channel balance.
+    """Validate color mode and that the retina has a normal fundus color profile.
 
-    Fundus images should be RGB with reasonably balanced channels.
-    Extreme tint (e.g., all-red) indicates a capture or processing problem.
+    A healthy fundus photo is strongly red-orange: red >> green > blue. Channel *equality* is the
+    wrong test (it would fail every real fundus photo). Instead the retina's mean green/red and
+    blue/red ratios must fall in a plausible range. A blue cast or a grayscale/washed-out image fails.
     """
     mode = image.mode
     channels = len(image.getbands())
 
-    # Convert to RGB for analysis if possible
     if mode in ("L", "LA"):
-        balanced = True
-        channel_means = [float(np.mean(np.array(image.convert("L"))))]
-        detail = f"Grayscale image ({mode}); fundus images should be RGB"
         return ColorResult(
-            mode=mode, channels=channels, balanced=balanced,
-            channel_means=channel_means, detail=detail,
+            mode=mode, channels=channels, balanced=False,
+            channel_means=[round(float(np.mean(np.array(image.convert("L")))), 2)],
+            detail=f"Grayscale image ({mode}); fundus images should be RGB color",
         )
 
-    rgb = np.array(image.convert("RGB"), dtype=np.float64)
-    r_mean = float(np.mean(rgb[:, :, 0]))
-    g_mean = float(np.mean(rgb[:, :, 1]))
-    b_mean = float(np.mean(rgb[:, :, 2]))
-    channel_means = [round(r_mean, 2), round(g_mean, 2), round(b_mean, 2)]
+    rgb = np.array(image.convert("RGB"))
+    mask = fov_mask(rgb)
+    r, g, b = (float(rgb[:, :, i][mask].mean()) for i in range(3))
+    channel_means = [round(r, 2), round(g, 2), round(b, 2)]
+    gr = g / max(r, 1.0)
+    br = b / max(r, 1.0)
 
-    # Max difference between any two channels
-    max_diff = max(abs(r_mean - g_mean), abs(r_mean - b_mean), abs(g_mean - b_mean))
-    balanced = max_diff < config.color_balance_pass
-
+    balanced = config.color_gr_min <= gr <= config.color_gr_max and br <= config.color_br_max
     if balanced:
-        detail = f"Color balance OK (max channel diff: {max_diff:.1f})"
-    elif max_diff < config.color_balance_review:
-        detail = f"Slight color imbalance (max diff: {max_diff:.1f}, review recommended)"
+        detail = f"Normal fundus color (G/R {gr:.2f}, B/R {br:.2f})"
+    elif br > config.color_br_max or b > r:
+        detail = f"Blue/cool color cast (G/R {gr:.2f}, B/R {br:.2f})"
+    elif gr > config.color_gr_max:
+        detail = f"Washed-out or grayscale-like color (G/R {gr:.2f})"
     else:
-        detail = f"Severe color imbalance (max diff: {max_diff:.1f})"
+        detail = f"Over-saturated red (G/R {gr:.2f})"
 
-    return ColorResult(
-        mode=mode,
-        channels=channels,
-        balanced=balanced,
-        channel_means=channel_means,
-        detail=detail,
-    )
+    return ColorResult(mode=mode, channels=channels, balanced=balanced, channel_means=channel_means, detail=detail)

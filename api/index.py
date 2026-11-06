@@ -1,15 +1,3 @@
-"""Vercel serverless entry point — docs landing page."""
+"""Vercel serverless entry point: docs and live demo page, plus the demo JSON endpoints."""
 
-from starlette.applications import Starlette
-from starlette.requests import Request
-from starlette.responses import HTMLResponse
-from starlette.routing import Route
-
-from src.docs_html import DOCS_HTML
-
-
-async def docs_page(request: Request) -> HTMLResponse:
-    return HTMLResponse(DOCS_HTML)
-
-
-app = Starlette(routes=[Route("/", docs_page)])
+from src.web import app  # noqa: F401  (Vercel looks for `app`)

@@ -86,7 +86,16 @@ class TestColor:
     def test_tinted_image(self, tinted_image: Image.Image):
         result = check_color(tinted_image)
         assert not result.balanced
-        assert "imbalance" in result.detail.lower()
+        assert "saturated" in result.detail.lower()
+
+
+    def test_blue_cast_is_flagged(self):
+        result = check_color(Image.new("RGB", (1024, 1024), (60, 80, 210)))
+        assert not result.balanced
+        assert "blue" in result.detail.lower()
+
+    def test_grayscale_looking_rgb_is_flagged(self):
+        assert not check_color(Image.new("RGB", (1024, 1024), (120, 120, 120))).balanced
 
 
 class TestMetadata:

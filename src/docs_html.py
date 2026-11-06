@@ -308,6 +308,33 @@ DOCS_HTML = r"""<!DOCTYPE html>
   /* --- Misc --- */
   h3.subsection { font-size: 0.95rem; font-weight: 600; margin: 1.25rem 0 0.4rem; color: var(--text); }
   .note { color: var(--muted); font-size: 0.82rem; margin-top: 0.5rem; }
+
+  /* --- Live demo --- */
+  .demo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+  .sample { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.5rem; text-align: left; cursor: pointer; font: inherit; color: inherit; transition: border-color .15s, box-shadow .15s; }
+  .sample:hover, .sample.active { border-color: var(--accent); box-shadow: var(--shadow-md); }
+  .sample img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; background: #000; display: block; }
+  .sample b { display: block; font-size: 0.82rem; margin-top: 0.4rem; }
+  .sample span { display: block; font-size: 0.72rem; color: var(--muted); line-height: 1.35; }
+  .drop { display: block; border: 2px dashed var(--border); border-radius: var(--radius); padding: 1.1rem; text-align: center; color: var(--muted); cursor: pointer; background: var(--surface); }
+  .drop:hover, .drop.over { border-color: var(--accent); color: var(--text); background: var(--accent-bg); }
+  .result { display: none; margin-top: 1.25rem; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; box-shadow: var(--shadow-sm); }
+  .result.show { display: grid; grid-template-columns: 220px 1fr; gap: 1.25rem; }
+  .result img { width: 100%; border-radius: 8px; background: #000; aspect-ratio: 1; object-fit: cover; }
+  .result .fname { font-size: 0.72rem; color: var(--muted); margin-top: 0.4rem; word-break: break-all; }
+  .big-verdict { display: inline-block; font-weight: 700; letter-spacing: .06em; font-size: 1.05rem; padding: 0.25rem 0.8rem; border-radius: 999px; }
+  .big-verdict.accept { background: var(--green-bg); color: var(--green); }
+  .big-verdict.review { background: var(--yellow-bg); color: var(--yellow); }
+  .big-verdict.reject { background: var(--red-bg); color: var(--red); }
+  .checks { margin-top: 0.8rem; border-top: 1px solid var(--border-light); }
+  .chk { display: grid; grid-template-columns: 1.4rem 7.5rem 1fr; gap: 0.5rem; padding: 0.5rem 0; border-bottom: 1px solid var(--border-light); font-size: 0.85rem; align-items: start; }
+  .chk .ic { font-weight: 700; }
+  .chk.ok .ic { color: var(--green); } .chk.bad .ic { color: var(--red); } .chk.info .ic { color: var(--muted); }
+  .chk .nm { font-weight: 600; text-transform: capitalize; }
+  .chk .dt { color: var(--text-secondary); }
+  .demo-note { font-size: 0.75rem; color: var(--muted); margin-top: 0.6rem; }
+  .spin { color: var(--muted); font-size: 0.9rem; }
+  @media (max-width: 640px) { .result.show { grid-template-columns: 1fr; } .chk { grid-template-columns: 1.4rem 1fr; } .chk .dt { grid-column: 2; } }
 </style>
 </head>
 <body>
@@ -366,10 +393,35 @@ DOCS_HTML = r"""<!DOCTYPE html>
     <span class="badge badge-accent">MCP Protocol</span>
     <span class="badge badge-outline">Streamable HTTP</span>
     <span class="badge badge-outline">8 Quality Tools</span>
+    <a class="badge badge-accent" href="#try" style="text-decoration:none">Try it live &darr;</a>
   </div>
 </div>
 
 <div class="container">
+
+  <div class="section" id="try">
+    <div class="section-label">Live demo</div>
+    <h2>Try it on an image</h2>
+    <p>Pick a sample below, or drop in your own retinal photo (JPEG or PNG, up to 4&nbsp;MB). The agent runs its
+    quality checks and returns a verdict in a second or two. Your image is analyzed in memory and not stored.</p>
+    <div class="demo-grid" id="samples"><span class="spin">Loading samples&hellip;</span></div>
+    <label class="drop" id="drop">Drop a fundus image here, or click to choose a file
+      <input type="file" id="file" accept="image/jpeg,image/png,image/tiff,image/bmp" hidden>
+    </label>
+    <div class="result" id="result" aria-live="polite">
+      <div><img id="preview" alt="Image being checked"><div class="fname" id="fname"></div></div>
+      <div>
+        <span class="big-verdict" id="verdict"></span>
+        <p id="summary" style="margin-top:0.5rem"></p>
+        <div class="checks" id="checks"></div>
+        <div class="demo-note" id="notes"></div>
+      </div>
+    </div>
+    <p class="demo-note">Sample images are variations of
+    <a href="https://commons.wikimedia.org/wiki/File:Fundus_photograph_of_normal_left_eye.jpg">a public-domain fundus photograph</a>
+    (CC0, Mikael H&auml;ggstr&ouml;m). Thresholds are calibrated on a small sample set and need tuning on real reading-center data
+    before clinical use.</p>
+  </div>
 
   <div class="section">
     <div class="section-label">Overview</div>
@@ -444,7 +496,7 @@ DOCS_HTML = r"""<!DOCTYPE html>
       <div class="tool-card">
         <h3>tool_check_sharpness</h3>
         <div class="tool-label">Blur Detection</div>
-        <p>Laplacian variance analysis. Score &gt;150 = sharp, &lt;80 = blurry.</p>
+        <p>Brightness-normalized Laplacian variance inside the retina. Score &ge;3.5 = sharp, &lt;1.5 = blurry.</p>
         <details>
           <summary>Input Parameters</summary>
           <pre><code>{
@@ -458,7 +510,7 @@ DOCS_HTML = r"""<!DOCTYPE html>
         <details>
           <summary>Output &mdash; SharpnessResult</summary>
           <pre><code>{
-  "score": 155.3,       <span class="schema-comment">// Laplacian variance</span>
+  "score": 6.1,         <span class="schema-comment">// normalized Laplacian variance</span>
   "is_sharp": true,     <span class="schema-comment">// pass/fail</span>
   "detail": "string"
 }</code></pre>
@@ -689,13 +741,14 @@ DOCS_HTML = r"""<!DOCTYPE html>
     <p>All thresholds are configurable via environment variables:</p>
     <table>
       <tr><th>Variable</th><th>Default</th><th>Description</th></tr>
-      <tr><td>QUALITY_SHARPNESS_PASS</td><td>150</td><td>Sharpness score to pass</td></tr>
-      <tr><td>QUALITY_SHARPNESS_REVIEW</td><td>80</td><td>Sharpness score for review</td></tr>
+      <tr><td>QUALITY_SHARPNESS_PASS</td><td>3.5</td><td>Sharpness score to pass</td></tr>
+      <tr><td>QUALITY_SHARPNESS_REVIEW</td><td>1.5</td><td>Below this is a clear blur (reject)</td></tr>
       <tr><td>QUALITY_MIN_WIDTH</td><td>1024</td><td>Minimum image width (px)</td></tr>
       <tr><td>QUALITY_MIN_HEIGHT</td><td>1024</td><td>Minimum image height (px)</td></tr>
       <tr><td>QUALITY_BRIGHTNESS_MIN_PASS</td><td>60</td><td>Min brightness to pass</td></tr>
       <tr><td>QUALITY_BRIGHTNESS_MAX_PASS</td><td>200</td><td>Max brightness to pass</td></tr>
-      <tr><td>QUALITY_COLOR_BALANCE_PASS</td><td>30</td><td>Max channel diff to pass</td></tr>
+      <tr><td>QUALITY_COLOR_GR_MIN / _MAX</td><td>0.25 / 0.85</td><td>Allowed retina green/red ratio</td></tr>
+      <tr><td>QUALITY_COLOR_BR_MAX</td><td>0.7</td><td>Max blue/red ratio (blue cast)</td></tr>
       <tr><td>QUALITY_ALLOWED_FORMATS</td><td>JPEG,PNG,TIFF,BMP</td><td>Accepted file formats</td></tr>
       <tr><td>QUALITY_EYEQ_ENABLED</td><td>true</td><td>Enable EyeQ deep learning</td></tr>
     </table>
@@ -712,6 +765,74 @@ DOCS_HTML = r"""<!DOCTYPE html>
   </div>
 
 </div>
+<script>
+(function () {
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const LABELS = { fundus_quality: 'EyeQ grade' };
+  let busy = false;
+
+  async function run(blob, name, activeBtn) {
+    if (busy) return;
+    busy = true;
+    document.querySelectorAll('.sample').forEach((b) => b.classList.toggle('active', b === activeBtn));
+    const res = $('result');
+    res.classList.add('show');
+    $('preview').src = URL.createObjectURL(blob);
+    $('fname').textContent = name;
+    $('verdict').className = 'big-verdict';
+    $('verdict').textContent = 'Checking…';
+    $('summary').textContent = '';
+    $('checks').innerHTML = '';
+    $('notes').textContent = '';
+    res.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    try {
+      const r = await fetch('/api/check', { method: 'POST', body: blob, headers: { 'Content-Type': blob.type || 'application/octet-stream', 'X-Filename': name } });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Request failed');
+      $('verdict').className = 'big-verdict ' + data.verdict;
+      $('verdict').textContent = data.verdict.toUpperCase();
+      $('summary').textContent = data.summary;
+      $('checks').innerHTML = data.checks.map((c) => {
+        const info = c.name === 'metadata';
+        const cls = info ? 'info' : c.passed ? 'ok' : 'bad';
+        return '<div class="chk ' + cls + '"><span class="ic">' + (info ? 'i' : c.passed ? '✓' : '✗') + '</span><span class="nm">' +
+          esc(LABELS[c.name] || c.name) + '</span><span class="dt">' + esc(c.detail) + '</span></div>';
+      }).join('');
+      $('notes').textContent = (data.notes || []).join(' ');
+    } catch (e) {
+      $('verdict').className = 'big-verdict reject';
+      $('verdict').textContent = 'ERROR';
+      $('summary').textContent = e.message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function init() {
+    try {
+      const list = await (await fetch('/api/samples')).json();
+      $('samples').innerHTML = list.map((s) =>
+        '<button class="sample" data-n="' + esc(s.name) + '"><img loading="lazy" alt="" src="/api/sample/' + esc(s.name) + '">' +
+        '<b>' + esc(s.title) + '</b><span>' + esc(s.blurb) + '</span></button>').join('');
+      $('samples').addEventListener('click', async (e) => {
+        const b = e.target.closest('.sample');
+        if (!b) return;
+        const blob = await (await fetch('/api/sample/' + b.dataset.n)).blob();
+        run(blob, b.dataset.n + '.jpg', b);
+      });
+    } catch (e) {
+      $('samples').textContent = 'Samples are unavailable right now, but you can still upload an image.';
+    }
+    const drop = $('drop'), file = $('file');
+    file.addEventListener('change', () => { if (file.files[0]) run(file.files[0], file.files[0].name, null); file.value = ''; });
+    ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
+    ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
+    drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) run(f, f.name, null); });
+  }
+  init();
+})();
+</script>
 </body>
 </html>
 """
